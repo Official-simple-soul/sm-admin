@@ -94,9 +94,9 @@ const ContentCard: React.FC<ContentCardProps> = ({
           >
             {content.title}
           </Text>
-          <Text size="sm" c="dimmed" lineClamp={1}>
+          {/* <Text size="sm" c="dimmed" lineClamp={1}>
             {content.collection}
-          </Text>
+          </Text> */}
         </div>
 
         <Text size="xs" fw={400} className="mb-2 text-text" lineClamp={1}>

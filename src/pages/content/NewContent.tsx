@@ -406,6 +406,7 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
       }
 
       if (contentToEdit) {
+        console.log('values', values)
         const contentData = {
           ...values,
           type: contentType,

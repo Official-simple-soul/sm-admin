@@ -35,9 +35,7 @@ export const ContentPage: React.FC = () => {
   const { decrementCollectionCount } = useCollection()
   const { decrementAnalyticsCount } = useAnalytics()
   const { content, error, isLoading, deleteContent, isDeleting } = useContent()
-  const [contentIdToDelete, setContentIdToDelete] = useState<string | null>(
-    null,
-  )
+  const [contentToDelete, setContentToDelete] = useState<Content | null>(null)
 
   const navigate = useNavigate({ from: '/content' })
   const route = useNavigate()
@@ -53,14 +51,16 @@ export const ContentPage: React.FC = () => {
   }
 
   const handleDelete = () => {
-    if (!contentIdToDelete) return
+    if (!contentToDelete?.id) return
 
-    deleteContent(contentIdToDelete, {
+    const collectionId = contentToDelete.collectionId
+
+    deleteContent(contentToDelete.id, {
       onSuccess: async () => {
-        setContentIdToDelete(null)
+        setContentToDelete(null)
 
         await Promise.all([
-          decrementCollectionCount(contentIdToDelete),
+          ...(collectionId ? [decrementCollectionCount(collectionId)] : []),
           decrementAnalyticsCount({ field: 'content', amount: 1 }),
         ])
       },
@@ -166,7 +166,7 @@ export const ContentPage: React.FC = () => {
                 content={item}
                 onView={handleView}
                 onEdit={handleEdit}
-                onDelete={() => setContentIdToDelete(item.id ?? null)}
+                onDelete={() => setContentToDelete(item)}
               />
             ))}
           </div>
@@ -176,7 +176,7 @@ export const ContentPage: React.FC = () => {
             isLoading={isLoading}
             onView={handleView}
             onEdit={handleEdit}
-            onDelete={(item) => setContentIdToDelete(item.id ?? null)}
+            onDelete={(item) => setContentToDelete(item)}
           />
         )
       ) : (
@@ -194,8 +194,8 @@ export const ContentPage: React.FC = () => {
       )}
 
       <ActionModal
-        opened={!!contentIdToDelete}
-        onClose={() => setContentIdToDelete(null)}
+        opened={!!contentToDelete}
+        onClose={() => setContentToDelete(null)}
         title={<span className="text-danger">Confirm Delete</span>}
         icon={
           <div className="bg-danger/10 p-2 rounded-full size-14 flex justify-center items-center">
@@ -216,7 +216,7 @@ export const ContentPage: React.FC = () => {
         primaryButtonColor={colors.danger}
         secondaryButtonText="Cancel"
         onSecondaryButtonClick={() => {
-          setContentIdToDelete(null)
+          setContentToDelete(null)
         }}
       />
     </DashboardLayout>
