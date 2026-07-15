@@ -4,8 +4,8 @@ import { CreateCollectionModal } from '@/components/modals/CreateCollectionModal
 import PageHeader from '@/components/PageHeader'
 import { fileSize } from '@/constant/constant'
 import { sharedInputProps } from '@/constant/ui'
-import { useAuthor } from '@/services/author.service'
 import { useAnalytics } from '@/services/analytics.service'
+import { useAuthor } from '@/services/author.service'
 import { useCategory } from '@/services/category.service'
 import { useCollection } from '@/services/collection.service'
 import { useContent } from '@/services/content.service'
@@ -296,13 +296,14 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
       (col) => col.id === collectionId,
     )
     if (selectedCollection) {
-      const collectionAuthorIds = Array.isArray(selectedCollection.authorIds)
-        && selectedCollection.authorIds.length > 0
-        ? selectedCollection.authorIds
-        : Array.isArray(selectedCollection.authors)
-          && selectedCollection.authors.length > 0
-          ? selectedCollection.authors.map((author) => author.id)
-          : resolveAuthorIdsFromText(selectedCollection.author || '', authors)
+      const collectionAuthorIds =
+        Array.isArray(selectedCollection.authorIds) &&
+        selectedCollection.authorIds.length > 0
+          ? selectedCollection.authorIds
+          : Array.isArray(selectedCollection.authors) &&
+              selectedCollection.authors.length > 0
+            ? selectedCollection.authors.map((author) => author.id)
+            : resolveAuthorIdsFromText(selectedCollection.author || '', authors)
       const collectionAuthors = resolveAuthorsFromIds(
         collectionAuthorIds,
         authors,
@@ -340,13 +341,14 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
 
     if (!selectedCollection) return
 
-    const collectionAuthorIds = Array.isArray(selectedCollection.authorIds)
-      && selectedCollection.authorIds.length > 0
-      ? selectedCollection.authorIds
-      : Array.isArray(selectedCollection.authors)
-        && selectedCollection.authors.length > 0
-        ? selectedCollection.authors.map((author) => author.id)
-        : resolveAuthorIdsFromText(selectedCollection.author || '', authors)
+    const collectionAuthorIds =
+      Array.isArray(selectedCollection.authorIds) &&
+      selectedCollection.authorIds.length > 0
+        ? selectedCollection.authorIds
+        : Array.isArray(selectedCollection.authors) &&
+            selectedCollection.authors.length > 0
+          ? selectedCollection.authors.map((author) => author.id)
+          : resolveAuthorIdsFromText(selectedCollection.author || '', authors)
     const collectionAuthors = resolveAuthorsFromIds(
       collectionAuthorIds,
       authors,
@@ -402,12 +404,13 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
 
   useEffect(() => {
     if (contentToEdit) {
-      const existingAuthorIds = Array.isArray(contentToEdit.authorIds)
-        && contentToEdit.authorIds.length > 0
-        ? contentToEdit.authorIds
-        : Array.isArray(contentToEdit.authors)
-          ? contentToEdit.authors.map((author) => author.id)
-          : resolveAuthorIdsFromText(contentToEdit.author || '', authors)
+      const existingAuthorIds =
+        Array.isArray(contentToEdit.authorIds) &&
+        contentToEdit.authorIds.length > 0
+          ? contentToEdit.authorIds
+          : Array.isArray(contentToEdit.authors)
+            ? contentToEdit.authors.map((author) => author.id)
+            : resolveAuthorIdsFromText(contentToEdit.author || '', authors)
       const existingAuthors = resolveAuthorsFromIds(existingAuthorIds, authors)
       form.setValues({
         title: contentToEdit.title,
@@ -718,7 +721,7 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
               <Grid>
                 <Grid.Col span={{ base: 12, sm: 6 }}>
                   <NumberInput
-                    label="Collection Number"
+                    label="Collection Number (Issue/Episode)"
                     placeholder="Sequence in collection"
                     min={1}
                     required
