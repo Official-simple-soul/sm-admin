@@ -22,6 +22,8 @@ const contentConverter = {
   toFirestore(content: Content): DocumentData {
     return {
       author: content.author,
+      authorIds: content.authorIds || [],
+      authors: content.authors || [],
       collection: content.collection,
       collectionId: content.collectionId,
       collectionNum: content.collectionNum,
@@ -58,6 +60,8 @@ const contentConverter = {
     return {
       id: snapshot.id,
       author: data.author,
+      authorIds: data.authorIds || [],
+      authors: data.authors || [],
       collection: data.collection,
       collectionId: data.collectionId,
       collectionNum: data.collectionNum,

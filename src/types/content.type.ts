@@ -92,11 +92,17 @@ export interface Content {
   publishedAt?: Timestamp
   metadata?: Record<string, any>
   viewerIds: string[]
+  authorIds?: string[]
+  authors?: Array<{
+    id: string
+    name: string
+  }>
 }
 
 export interface Collection {
   id?: string
   author: string
+  authorIds?: string[]
   count: number
   createdAt: Timestamp
   genre: string[]

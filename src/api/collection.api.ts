@@ -23,6 +23,8 @@ const collectionConverter = {
     return {
       name: collectionData.name,
       author: collectionData.author,
+      authorIds: collectionData.authorIds || [],
+      authors: collectionData.authors || [],
       mode: collectionData.mode,
       genre: collectionData.genre,
       count: collectionData.count || 0,
@@ -38,6 +40,8 @@ const collectionConverter = {
       id: snapshot.id,
       name: data.name,
       author: data.author,
+      authorIds: data.authorIds || [],
+      authors: data.authors || [],
       mode: data.mode,
       genre: data.genre,
       count: data.count || 0,

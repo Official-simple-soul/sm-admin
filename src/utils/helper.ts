@@ -1,3 +1,16 @@
+export const generateContentKey = (
+  title: string,
+  collectionNum: number,
+): string => {
+  const slug = title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return `${slug}-${collectionNum}`
+}
+
 export const safeToDate = (timestamp: any): Date | null => {
   if (!timestamp) return null
 

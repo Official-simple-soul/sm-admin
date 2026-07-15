@@ -4,6 +4,7 @@ import { CreateCollectionModal } from '@/components/modals/CreateCollectionModal
 import PageHeader from '@/components/PageHeader'
 import { fileSize } from '@/constant/constant'
 import { sharedInputProps } from '@/constant/ui'
+import { useAuthor } from '@/services/author.service'
 import { useAnalytics } from '@/services/analytics.service'
 import { useCategory } from '@/services/category.service'
 import { useCollection } from '@/services/collection.service'
@@ -11,6 +12,7 @@ import { useContent } from '@/services/content.service'
 import { colors } from '@/theme/theme'
 import type { Content } from '@/types/content.type'
 import { uploadFileToStorage } from '@/utils/fileUpload'
+import { generateContentKey } from '@/utils/helper'
 import {
   Alert,
   Box,
@@ -56,7 +58,7 @@ import {
 } from '@tabler/icons-react'
 import { useNavigate } from '@tanstack/react-router'
 import { Timestamp } from 'firebase/firestore'
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface CreateContentModalProps {
   contentToEdit?: Content | null
@@ -143,6 +145,43 @@ const CATEGORY_ICONS = [
   { value: 'news', label: 'News' },
 ]
 
+const normalizeWhitespace = (value: string) => value.trim().replace(/\s+/g, ' ')
+
+const normalizeAuthorKey = (value: string) =>
+  normalizeWhitespace(value).toLowerCase().replace(/[-_]+/g, ' ')
+
+const splitAuthorInput = (value: string) =>
+  value
+    .split(/,|\s+and\s+/i)
+    .map((item) => normalizeWhitespace(item))
+    .filter(Boolean)
+
+const resolveAuthorIdsFromText = (
+  rawValue: string,
+  authorOptions: Array<{ id: string; name: string }>,
+) => {
+  const names = splitAuthorInput(rawValue)
+  const byKey = new Map(
+    authorOptions.map((author) => [normalizeAuthorKey(author.name), author.id]),
+  )
+
+  return Array.from(
+    new Set(
+      names
+        .map((name) => byKey.get(normalizeAuthorKey(name)))
+        .filter((id): id is string => Boolean(id)),
+    ),
+  )
+}
+
+const resolveAuthorsFromIds = (
+  authorIds: string[],
+  authorOptions: Array<{ id: string; name: string }>,
+) => {
+  const ids = new Set(authorIds)
+  return authorOptions.filter((author) => ids.has(author.id))
+}
+
 function NewContent({ contentToEdit }: CreateContentModalProps) {
   const [contentType, setContentType] = useState<'reading' | 'watching'>(
     'reading',
@@ -150,6 +189,7 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
   const [coverImage, setCoverImage] = useState<File | null>(null)
   const [coverImageError, setCoverImageError] = useState<string | null>(null)
   const [mediaFile, setMediaFile] = useState<File | null>(null)
+  const { authors } = useAuthor()
   const { collections, incrementCollectionCount } = useCollection()
   const { analytics, incrementAnalyticsCount } = useAnalytics()
   const { createContent, updateContent } = useContent()
@@ -169,13 +209,15 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
   const [contentCreatedModalOpen, setContentCreatedModalOpen] = useState(false)
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedCollectionAuthors, setSelectedCollectionAuthors] = useState<
+    Array<{ id: string; name: string }>
+  >([])
   const isReading = contentType === 'reading'
 
   const form = useForm({
     initialValues: {
       title: '',
       tagLine: '',
-      author: '',
       collection: '',
       collectionId: '',
       collectionNum: 1,
@@ -192,7 +234,6 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
 
     validate: {
       title: (value) => (value.trim() ? null : 'Title is required'),
-      author: (value) => (value.trim() ? null : 'Author is required'),
       collection: (value) => (value.trim() ? null : 'Collection is required'),
       categoryId: (value) => (value.trim() ? null : 'Category is required'),
       genre: (value) =>
@@ -255,15 +296,26 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
       (col) => col.id === collectionId,
     )
     if (selectedCollection) {
+      const collectionAuthorIds = Array.isArray(selectedCollection.authorIds)
+        && selectedCollection.authorIds.length > 0
+        ? selectedCollection.authorIds
+        : Array.isArray(selectedCollection.authors)
+          && selectedCollection.authors.length > 0
+          ? selectedCollection.authors.map((author) => author.id)
+          : resolveAuthorIdsFromText(selectedCollection.author || '', authors)
+      const collectionAuthors = resolveAuthorsFromIds(
+        collectionAuthorIds,
+        authors,
+      )
       form.setValues({
         ...form.values,
-        author: selectedCollection.author,
         collection: selectedCollection.name,
         collectionId: selectedCollection.id,
         genre: selectedCollection.genre,
         collectionNum: (selectedCollection.count || 0) + 1,
         mode: selectedCollection.mode,
       })
+      setSelectedCollectionAuthors(collectionAuthors)
       setContentType(selectedCollection.mode as 'reading' | 'watching')
     }
   }
@@ -278,6 +330,30 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
       })
     }
   }
+
+  useEffect(() => {
+    if (!form.values.collectionId) return
+
+    const selectedCollection = collections.find(
+      (collection) => collection.id === form.values.collectionId,
+    )
+
+    if (!selectedCollection) return
+
+    const collectionAuthorIds = Array.isArray(selectedCollection.authorIds)
+      && selectedCollection.authorIds.length > 0
+      ? selectedCollection.authorIds
+      : Array.isArray(selectedCollection.authors)
+        && selectedCollection.authors.length > 0
+        ? selectedCollection.authors.map((author) => author.id)
+        : resolveAuthorIdsFromText(selectedCollection.author || '', authors)
+    const collectionAuthors = resolveAuthorsFromIds(
+      collectionAuthorIds,
+      authors,
+    )
+
+    setSelectedCollectionAuthors(collectionAuthors)
+  }, [authors, collections, form.values.collectionId])
 
   const handleCreateNewCategory = async () => {
     const { name, icon } = newCategoryForm.values
@@ -326,11 +402,17 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
 
   useEffect(() => {
     if (contentToEdit) {
+      const existingAuthorIds = Array.isArray(contentToEdit.authorIds)
+        && contentToEdit.authorIds.length > 0
+        ? contentToEdit.authorIds
+        : Array.isArray(contentToEdit.authors)
+          ? contentToEdit.authors.map((author) => author.id)
+          : resolveAuthorIdsFromText(contentToEdit.author || '', authors)
+      const existingAuthors = resolveAuthorsFromIds(existingAuthorIds, authors)
       form.setValues({
         title: contentToEdit.title,
         tagLine: contentToEdit.tagLine,
-        author: contentToEdit.author,
-        collection: contentToEdit.collectionId || '',
+        collection: contentToEdit.collection || '',
         collectionId: contentToEdit.collectionId,
         collectionNum: contentToEdit.collectionNum,
         genre: contentToEdit.genre,
@@ -342,6 +424,7 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
         categoryId: contentToEdit.categoryId || '',
         categoryName: contentToEdit.categoryName || '',
       })
+      setSelectedCollectionAuthors(existingAuthors)
       setContentType(contentToEdit.mode)
       setIsScheduled(!!contentToEdit.scheduledDate)
       setCoverImagePreview(contentToEdit.thumbnail)
@@ -351,13 +434,17 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
       setMediaFile(null)
       setIsScheduled(false)
       setCoverImagePreview(null)
+      setSelectedCollectionAuthors([])
     }
-  }, [contentToEdit])
+  }, [contentToEdit, authors])
 
   const handleSubmit = async (values: typeof form.values) => {
     const selectedCollection = collections.find(
       (e) => e.id === values.collectionId,
     )
+    const selectedAuthors = selectedCollectionAuthors
+    const selectedAuthorIds = selectedAuthors.map((author) => author.id)
+    const authorText = selectedAuthors.map((author) => author.name).join(', ')
 
     if (selectedCollection?.mode !== contentType) {
       notifications.show({
@@ -390,6 +477,8 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
         return
       }
 
+      const contentValues = values
+
       let imgUrl = contentToEdit?.thumbnail || ''
       let mediaUrl = contentToEdit?.contentUrl || ''
 
@@ -408,11 +497,18 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
       if (contentToEdit) {
         console.log('values', values)
         const contentData = {
-          ...values,
+          ...contentValues,
+          author: authorText,
+          authorIds: selectedAuthorIds,
+          authors: selectedAuthors.map((author) => ({
+            id: author.id,
+            name: author.name,
+          })),
           type: contentType,
           thumbnail: imgUrl,
           contentUrl: mediaUrl,
           ...(values.scheduledDate && { scheduledDate: values.scheduledDate }),
+          key: generateContentKey(values.title, values.collectionNum),
         }
 
         await updateContent({
@@ -421,15 +517,19 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
         })
       } else {
         const contentData = {
-          ...values,
-          id: `${values.categoryId}-${useId()}`,
+          ...contentValues,
+          author: authorText,
+          authorIds: selectedAuthorIds,
+          authors: selectedAuthors.map((author) => ({
+            id: author.id,
+            name: author.name,
+          })),
+          id: `${values.categoryId}-${crypto.randomUUID()}`,
           type: contentType,
           thumbnail: imgUrl,
           contentUrl: mediaUrl,
           ...(values.scheduledDate && { scheduledDate: values.scheduledDate }),
-          key:
-            `${values.collection.split(' ').join('')}${values.collectionNum}` ||
-            '',
+          key: generateContentKey(values.title, values.collectionNum),
           num: (analytics?.content || 0) + 1,
           totalCompletions: 0,
           totalRatings: 0,
@@ -445,7 +545,6 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
 
         await Promise.all([
           incrementCollectionCount(values.collectionId),
-
           incrementAnalyticsCount({ field: 'content', amount: 1 }),
         ])
 
@@ -599,14 +698,19 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
                   </div>
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <TextInput
-                    label="Author"
-                    placeholder="Content author"
-                    required
-                    {...form.getInputProps('author')}
-                    {...sharedInputProps()}
+                  <MultiSelect
+                    label="Authors"
+                    placeholder="Select a collection to populate authors"
+                    data={authors.map((author) => ({
+                      value: author.id,
+                      label: author.name,
+                    }))}
+                    value={selectedCollectionAuthors.map((author) => author.id)}
                     readOnly
-                    description="This will be automatically populated based on the selected collection"
+                    searchable
+                    nothingFoundMessage="No authors found"
+                    description="Authors are inherited from the selected collection and cannot be edited here."
+                    {...sharedInputProps()}
                   />
                 </Grid.Col>
               </Grid>
