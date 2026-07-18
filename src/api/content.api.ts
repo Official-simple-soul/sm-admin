@@ -1,5 +1,10 @@
 import { db, storage } from '@/lib/firebase'
-import type { Content, CreateContentDTO, Review } from '@/types/content.type'
+import type {
+  Content,
+  ContentImages,
+  CreateContentDTO,
+  Review,
+} from '@/types/content.type'
 import {
   collection,
   deleteDoc,
@@ -10,6 +15,7 @@ import {
   orderBy,
   query,
   QueryDocumentSnapshot,
+  deleteField,
   setDoc,
   updateDoc,
   where,
@@ -20,10 +26,18 @@ import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 
 const contentConverter = {
   toFirestore(content: Content): DocumentData {
+    const images: ContentImages | undefined =
+      content.images ??
+      (content.thumbnail
+        ? {
+            thumbnail: content.thumbnail,
+            poster: content.thumbnail,
+            backdrop: content.thumbnail,
+          }
+        : undefined)
+
     return {
-      author: content.author,
       authorIds: content.authorIds || [],
-      authors: content.authors || [],
       collection: content.collection,
       collectionId: content.collectionId,
       collectionNum: content.collectionNum,
@@ -31,6 +45,7 @@ const contentConverter = {
       categoryId: content.categoryId,
       genre: content.genre,
       thumbnail: content.thumbnail,
+      images,
       key: content.key,
       num: content.num,
       mode: content.mode,
@@ -57,6 +72,8 @@ const contentConverter = {
     options: SnapshotOptions,
   ): Content {
     const data = snapshot.data(options)
+    const legacyThumbnail = data.thumbnail ?? ''
+    const images = data.images as ContentImages | undefined
     return {
       id: snapshot.id,
       author: data.author,
@@ -68,7 +85,14 @@ const contentConverter = {
       categoryName: data.categoryName,
       categoryId: data.categoryId,
       genre: data.genre,
-      thumbnail: data.thumbnail,
+      thumbnail: images?.thumbnail ?? legacyThumbnail,
+      images: images ?? (legacyThumbnail
+        ? {
+            thumbnail: legacyThumbnail,
+            poster: legacyThumbnail,
+            backdrop: legacyThumbnail,
+          }
+        : undefined),
       key: data.key,
       num: data.num,
       mode: data.mode,
@@ -128,7 +152,11 @@ export const contentApi = {
 
   async updateContent(id: string, content: Partial<Content>): Promise<void> {
     const docRef = doc(db, tableName, id)
-    await updateDoc(docRef, content as DocumentData)
+    await updateDoc(docRef, {
+      ...(content as DocumentData),
+      author: deleteField(),
+      authors: deleteField(),
+    })
   },
 
   async deleteContent(id: string): Promise<void> {

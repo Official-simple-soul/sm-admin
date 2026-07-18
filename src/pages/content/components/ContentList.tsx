@@ -108,7 +108,9 @@ export const ContentList: React.FC<ContentListProps> = ({
     if (search) {
       const searchQuery = search.toLowerCase()
       const matchesTitle = item.title.toLowerCase().includes(searchQuery)
-      const matchesAuthor = item.author.toLowerCase().includes(searchQuery)
+      const matchesAuthor = item.author
+        ? item.author.toLowerCase().includes(searchQuery)
+        : false
       const matchesCollection = item.collection
         .toLowerCase()
         .includes(searchQuery)

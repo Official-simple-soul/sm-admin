@@ -100,7 +100,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
         </div>
 
         <Text size="xs" fw={400} className="mb-2 text-text" lineClamp={1}>
-          By {content.author}
+          By {content.author || 'Unknown author'}
         </Text>
         <div className="my-3">
           <Group justify="space-between" className="mb-1">

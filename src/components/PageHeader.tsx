@@ -8,6 +8,10 @@ interface PageHeaderProps {
   actionLabel?: string
   onAction?: () => void
   actionIcon?: React.ReactNode
+  secondaryActionLabel?: string
+  secondaryOnAction?: () => void
+  secondaryActionIcon?: React.ReactNode
+  secondaryLoading?: boolean
   page?: string
   loading?: boolean
 }
@@ -18,6 +22,10 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   actionLabel,
   onAction,
   actionIcon,
+  secondaryActionLabel,
+  secondaryOnAction,
+  secondaryActionIcon,
+  secondaryLoading = false,
   page = null,
   loading = false,
 }) => {
@@ -34,14 +42,29 @@ const PageHeader: React.FC<PageHeaderProps> = ({
         </div>
       )}
 
-      {actionLabel && onAction && (
-        <AppButton
-          onClick={onAction}
-          leftSection={actionIcon}
-          loading={loading}
-        >
-          {actionLabel}
-        </AppButton>
+      {(actionLabel || secondaryActionLabel) && (
+        <Group gap="sm">
+          {secondaryActionLabel && secondaryOnAction && (
+            <AppButton
+              variant="light"
+              color="gray"
+              onClick={secondaryOnAction}
+              leftSection={secondaryActionIcon}
+              loading={secondaryLoading}
+            >
+              {secondaryActionLabel}
+            </AppButton>
+          )}
+          {actionLabel && onAction && (
+            <AppButton
+              onClick={onAction}
+              leftSection={actionIcon}
+              loading={loading}
+            >
+              {actionLabel}
+            </AppButton>
+          )}
+        </Group>
       )}
     </Group>
   )

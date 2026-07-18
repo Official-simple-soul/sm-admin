@@ -7,7 +7,7 @@ import type { Author } from '@/types/author.type'
 import type { Collection } from '@/types/collection.type'
 import {
   Box,
-  Anchor,
+  Button,
   Group,
   Modal,
   MultiSelect,
@@ -109,29 +109,37 @@ export function CreateCollectionModal({
   )
 
   useEffect(() => {
+    if (!opened) {
+      form.reset()
+      return
+    }
+
     if (collectionToEdit) {
       const existingAuthorIds = Array.isArray(collectionToEdit.authorIds)
         ? collectionToEdit.authorIds
         : Array.isArray(collectionToEdit.authors)
           ? collectionToEdit.authors.map((author) => author.id)
           : collectionToEdit.author
-          ? resolveAuthorIdsFromText(collectionToEdit.author, authors)
-          : []
+            ? resolveAuthorIdsFromText(collectionToEdit.author, authors)
+            : []
       form.setValues({
         name: collectionToEdit.name,
         authorIds: existingAuthorIds,
         mode: collectionToEdit.mode,
         genre: collectionToEdit.genre,
       })
-    } else {
-      form.reset()
     }
-  }, [collectionToEdit, opened, authors])
+  }, [collectionToEdit, opened])
 
-  const handleAuthorCreated = (author: Author) => {
+  const handleAuthorCreated = (createdAuthors: Author[]) => {
     form.setValues({
       ...form.values,
-      authorIds: Array.from(new Set([...form.values.authorIds, author.id])),
+      authorIds: Array.from(
+        new Set([
+          ...form.values.authorIds,
+          ...createdAuthors.map((author) => author.id),
+        ]),
+      ),
     })
   }
 
@@ -202,22 +210,30 @@ export function CreateCollectionModal({
             nothingFoundMessage="No authors found"
             {...form.getInputProps('authorIds')}
             {...sharedInputProps()}
-            description="Authors are assigned at the collection level and will be inherited by content."
+            description="Collection authors"
           />
 
           <Group gap={4} mt={-6} align="center" className="text-primary">
             <Text size="xs" c="dimmed">
               Can't find the author you need?
             </Text>
-            <Anchor
-              component="button"
+            <Button
               type="button"
-              onClick={() => setOpenNewAuthorModal(true)}
-              fw={600}
+              variant="subtle"
+              color={colors.primary}
               size="xs"
+              onClick={() => setOpenNewAuthorModal(true)}
+              styles={{
+                root: {
+                  padding: 0,
+                  height: 'auto',
+                  minHeight: 'auto',
+                  fontWeight: 600,
+                },
+              }}
             >
               Create New Author
-            </Anchor>
+            </Button>
           </Group>
 
           <Select

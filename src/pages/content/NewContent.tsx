@@ -15,6 +15,7 @@ import { uploadFileToStorage } from '@/utils/fileUpload'
 import { generateContentKey } from '@/utils/helper'
 import {
   Alert,
+  Badge,
   Box,
   Card,
   Divider,
@@ -64,6 +65,16 @@ interface CreateContentModalProps {
   contentToEdit?: Content | null
 }
 
+type ContentImageField = 'thumbnail' | 'poster' | 'backdrop'
+
+interface ContentImageState {
+  file: File | null
+  preview: string | null
+  error: string | null
+}
+
+type SubmitIntent = 'publish' | 'draft'
+
 const genres = [
   'action',
   'adventure',
@@ -92,12 +103,12 @@ const UPLOAD_STEPS = [
   {
     label: 'Additional Details',
     icon: <IconInfoCircle size={16} />,
-    description: 'Add duration, status, and preview',
+    description: 'Add duration and preview',
   },
   {
     label: 'Media Upload',
     icon: <IconUpload size={16} />,
-    description: 'Upload cover image and media files',
+    description: 'Upload images and media files',
   },
   {
     label: 'Publish',
@@ -128,6 +139,48 @@ const validatePDF = (file: File | null): string | null => {
 
 const validateVideo = (file: File | null): string | null => {
   return validateFileSize(file, fileSize.video) // 200MB
+}
+
+const IMAGE_REQUIREMENTS: Record<
+  ContentImageField,
+  {
+    label: string
+    description: string
+    minWidth: number
+    minHeight: number
+    ratioMin: number
+    ratioMax: number
+    aspectRatio: string
+  }
+> = {
+  thumbnail: {
+    label: 'Thumbnail',
+    description: 'Best for cards and compact library views.',
+    minWidth: 600,
+    minHeight: 900,
+    ratioMin: 0.62,
+    ratioMax: 0.72,
+    aspectRatio: '2 / 3',
+  },
+  poster: {
+    label: 'Poster',
+    description: 'Optional. Use for side panels and featured layouts.',
+    minWidth: 900,
+    minHeight: 1200,
+    ratioMin: 0.72,
+    ratioMax: 0.84,
+    aspectRatio: '3 / 4',
+  },
+  backdrop: {
+    label: 'Backdrop',
+    description:
+      'Used for heroes and wide banner sections. 16:9 to 2:1 works best.',
+    minWidth: 1280,
+    minHeight: 720,
+    ratioMin: 1.5,
+    ratioMax: 2.1,
+    aspectRatio: '16 / 9',
+  },
 }
 
 const CATEGORY_ICONS = [
@@ -182,12 +235,79 @@ const resolveAuthorsFromIds = (
   return authorOptions.filter((author) => ids.has(author.id))
 }
 
+const createEmptyImageState = (): ContentImageState => ({
+  file: null,
+  preview: null,
+  error: null,
+})
+
+const createEmptyImageStates = (): Record<
+  ContentImageField,
+  ContentImageState
+> =>
+  ({
+    thumbnail: createEmptyImageState(),
+    poster: createEmptyImageState(),
+    backdrop: createEmptyImageState(),
+  }) satisfies Record<ContentImageField, ContentImageState>
+
+const loadImageDimensions = (
+  file: File,
+): Promise<{ width: number; height: number }> =>
+  new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file)
+    const image = new window.Image()
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      resolve({
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      })
+    }
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('Failed to read image dimensions'))
+    }
+
+    image.src = objectUrl
+  })
+
+const validateContentImage = async (
+  file: File,
+  field: ContentImageField,
+): Promise<string | null> => {
+  const sizeError = validateImage(file)
+  if (sizeError) return sizeError
+
+  const requirements = IMAGE_REQUIREMENTS[field]
+
+  try {
+    const { width, height } = await loadImageDimensions(file)
+    const ratio = width / height
+
+    if (width < requirements.minWidth || height < requirements.minHeight) {
+      return `${requirements.label} must be at least ${requirements.minWidth}x${requirements.minHeight}px`
+    }
+
+    if (ratio < requirements.ratioMin || ratio > requirements.ratioMax) {
+      return `${requirements.label} should be close to ${requirements.aspectRatio} ratio`
+    }
+  } catch {
+    return `Unable to read ${requirements.label.toLowerCase()} dimensions`
+  }
+
+  return null
+}
+
 function NewContent({ contentToEdit }: CreateContentModalProps) {
   const [contentType, setContentType] = useState<'reading' | 'watching'>(
     'reading',
   )
-  const [coverImage, setCoverImage] = useState<File | null>(null)
-  const [coverImageError, setCoverImageError] = useState<string | null>(null)
+  const [contentImages, setContentImages] = useState<
+    Record<ContentImageField, ContentImageState>
+  >(createEmptyImageStates)
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const { authors } = useAuthor()
   const { collections, incrementCollectionCount } = useCollection()
@@ -203,16 +323,28 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
   const [isScheduled, setIsScheduled] = useState(false)
   const [openNewCollectionModal, setOpenNewCollectionModal] = useState(false)
   const [openNewCategoryModal, setOpenNewCategoryModal] = useState(false)
-  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(
-    null,
-  )
   const [contentCreatedModalOpen, setContentCreatedModalOpen] = useState(false)
+  const [lastSubmitIntent, setLastSubmitIntent] =
+    useState<SubmitIntent>('publish')
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
   const [selectedCollectionAuthors, setSelectedCollectionAuthors] = useState<
     Array<{ id: string; name: string }>
   >([])
   const isReading = contentType === 'reading'
+
+  const updateContentImageState = (
+    field: ContentImageField,
+    next: Partial<ContentImageState>,
+  ) => {
+    setContentImages((prev) => ({
+      ...prev,
+      [field]: {
+        ...prev[field],
+        ...next,
+      },
+    }))
+  }
 
   const form = useForm({
     initialValues: {
@@ -224,7 +356,6 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
       genre: [] as string[],
       synopsis: '',
       package: 'free' as 'free' | 'premium',
-      status: 'draft' as 'draft' | 'published',
       mode: 'reading' as 'reading' | 'watching',
       length: 1,
       scheduledDate: '',
@@ -257,26 +388,36 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
     },
   })
 
-  const handleCoverImageChange = (file: File | null) => {
-    setCoverImage(file)
-    setCoverImageError(null)
+  const handleContentImageChange = async (
+    field: ContentImageField,
+    file: File | null,
+  ) => {
+    updateContentImageState(field, {
+      file,
+      error: null,
+    })
 
-    if (file) {
-      const error = validateImage(file)
-      if (error) {
-        setCoverImageError(error)
-        setCoverImagePreview(null)
-        return
-      }
-
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setCoverImagePreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-    } else {
-      setCoverImagePreview(null)
+    if (!file) {
+      updateContentImageState(field, { preview: null })
+      return
     }
+
+    const error = await validateContentImage(file, field)
+    if (error) {
+      updateContentImageState(field, {
+        error,
+        preview: null,
+      })
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      updateContentImageState(field, {
+        preview: event.target?.result as string,
+      })
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleMediaFileChange = (file: File | null) => {
@@ -402,6 +543,78 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
     }
   }
 
+  const renderContentImageField = (field: ContentImageField) => {
+    const requirements = IMAGE_REQUIREMENTS[field]
+    const state = contentImages[field]
+
+    return (
+      <Card
+        withBorder
+        radius="lg"
+        className="h-full bg-background/80 backdrop-blur-sm"
+      >
+        <Stack gap="sm">
+          <Group justify="space-between" align="start" wrap="nowrap">
+            <div>
+              <Text fw={600} size="md">
+                {requirements.label}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {requirements.description}
+              </Text>
+            </div>
+            <Badge variant="light" color={colors.primary}>
+              {requirements.aspectRatio}
+            </Badge>
+          </Group>
+
+          <FileInput
+            label={`Upload ${requirements.label.toLowerCase()}`}
+            placeholder={`Choose ${requirements.label.toLowerCase()}`}
+            accept="image/png,image/jpeg,image/webp"
+            leftSection={<IconPhoto size={16} />}
+            value={state.file}
+            onChange={(file) => handleContentImageChange(field, file)}
+            required={!contentToEdit && field !== 'poster'}
+            description={`Max size: ${fileSize.cover}MB • Minimum: ${requirements.minWidth}×${requirements.minHeight}px`}
+            error={state.error}
+            {...sharedInputProps()}
+          />
+
+          <div>
+            <Text size="sm" fw={500} mb="xs">
+              Preview
+            </Text>
+            <div
+              className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-100"
+              style={{ aspectRatio: requirements.aspectRatio }}
+            >
+              {state.preview ? (
+                <Image
+                  src={state.preview}
+                  alt={`${requirements.label} preview`}
+                  h="100%"
+                  w="100%"
+                  fit="cover"
+                  radius="md"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-white to-gray-100 text-center">
+                  <div className="space-y-1 px-4">
+                    <IconPhoto size={22} className="mx-auto text-gray-400" />
+                    <Text size="xs" c="dimmed">
+                      {requirements.label} preview will appear here
+                    </Text>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </Stack>
+      </Card>
+    )
+  }
+
   useEffect(() => {
     if (contentToEdit) {
       const existingAuthorIds =
@@ -421,7 +634,6 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
         genre: contentToEdit.genre,
         synopsis: contentToEdit.synopsis,
         package: contentToEdit.package as 'free',
-        status: contentToEdit.status as 'draft',
         mode: contentToEdit.mode,
         length: contentToEdit.length,
         categoryId: contentToEdit.categoryId || '',
@@ -430,24 +642,38 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
       setSelectedCollectionAuthors(existingAuthors)
       setContentType(contentToEdit.mode)
       setIsScheduled(!!contentToEdit.scheduledDate)
-      setCoverImagePreview(contentToEdit.thumbnail)
+      const existingThumbnail =
+        contentToEdit.images?.thumbnail || contentToEdit.thumbnail || null
+      const existingPoster =
+        contentToEdit.images?.poster || contentToEdit.thumbnail || null
+      const existingBackdrop =
+        contentToEdit.images?.backdrop || contentToEdit.thumbnail || null
+      setContentImages({
+        thumbnail: { file: null, preview: existingThumbnail, error: null },
+        poster: { file: null, preview: existingPoster, error: null },
+        backdrop: { file: null, preview: existingBackdrop, error: null },
+      })
     } else {
       form.reset()
-      setCoverImage(null)
       setMediaFile(null)
       setIsScheduled(false)
-      setCoverImagePreview(null)
+      setContentImages(createEmptyImageStates())
       setSelectedCollectionAuthors([])
     }
-  }, [contentToEdit, authors])
+  }, [contentToEdit])
 
-  const handleSubmit = async (values: typeof form.values) => {
+  const handleSubmit = async (
+    values: typeof form.values,
+    intent: SubmitIntent = 'publish',
+  ) => {
     const selectedCollection = collections.find(
       (e) => e.id === values.collectionId,
     )
-    const selectedAuthors = selectedCollectionAuthors
-    const selectedAuthorIds = selectedAuthors.map((author) => author.id)
-    const authorText = selectedAuthors.map((author) => author.name).join(', ')
+    const selectedAuthorIds = selectedCollectionAuthors.map((author) => author.id)
+    const isDraftSave = intent === 'draft'
+    const finalStatus: 'draft' | 'published' = isDraftSave
+      ? 'draft'
+      : 'published'
 
     if (selectedCollection?.mode !== contentType) {
       notifications.show({
@@ -460,18 +686,42 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
 
     setIsLoading(true)
     try {
-      if (!contentToEdit) {
-        if (!coverImage) {
-          setCoverImageError('Cover image is required')
-          return
+      const imageFields: ContentImageField[] = [
+        'thumbnail',
+        'poster',
+        'backdrop',
+      ]
+      const requiredImageFields: ContentImageField[] = ['thumbnail', 'backdrop']
+
+      if (!isDraftSave) {
+        for (const field of requiredImageFields) {
+          const current = contentImages[field]
+          if (!contentToEdit && !current.file) {
+            updateContentImageState(field, {
+              error: `${IMAGE_REQUIREMENTS[field].label} is required`,
+            })
+            notifications.show({
+              title: 'Validation Error',
+              message: `${IMAGE_REQUIREMENTS[field].label} is required`,
+              color: 'red',
+            })
+            return
+          }
         }
-        if (!mediaFile) {
-          setMediaFileError('Media file is required')
-          return
+
+        if (!contentToEdit) {
+          if (!mediaFile) {
+            setMediaFileError('Media file is required')
+            return
+          }
         }
       }
 
-      if (coverImageError || mediaFileError) {
+      const hasImageErrors = imageFields.some((field) =>
+        Boolean(contentImages[field].error),
+      )
+
+      if (hasImageErrors || mediaFileError) {
         notifications.show({
           title: 'Validation Error',
           message: 'Please fix the file upload errors',
@@ -482,12 +732,36 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
 
       const contentValues = values
 
-      let imgUrl = contentToEdit?.thumbnail || ''
+      const imagePathBase = values.title.replace(/\s+/g, '_')
+      const existingImages = contentToEdit?.images
+      const resolveExistingImageUrl = (field: ContentImageField) =>
+        field === 'thumbnail'
+          ? existingImages?.thumbnail || contentToEdit?.thumbnail || ''
+          : field === 'poster'
+            ? existingImages?.poster || contentToEdit?.thumbnail || ''
+            : existingImages?.backdrop || contentToEdit?.thumbnail || ''
+
+      const nextImageUrls = {
+        thumbnail: resolveExistingImageUrl('thumbnail'),
+        poster: resolveExistingImageUrl('poster'),
+        backdrop: resolveExistingImageUrl('backdrop'),
+      }
+
       let mediaUrl = contentToEdit?.contentUrl || ''
 
-      if (coverImage) {
-        const coverImagePath = `contents/thumbnail/${values.title.replace(/\s+/g, '_')}${values.collectionNum}`
-        imgUrl = await uploadFileToStorage(coverImage, coverImagePath)
+      for (const field of ['thumbnail', 'poster', 'backdrop'] as const) {
+        const current = contentImages[field]
+        if (!current.file) continue
+
+        const imagePath = `contents/${field}/${imagePathBase}${values.collectionNum}`
+        nextImageUrls[field] = await uploadFileToStorage(
+          current.file,
+          imagePath,
+        )
+      }
+
+      if (!nextImageUrls.poster) {
+        nextImageUrls.poster = nextImageUrls.thumbnail
       }
 
       if (mediaFile) {
@@ -501,14 +775,11 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
         console.log('values', values)
         const contentData = {
           ...contentValues,
-          author: authorText,
           authorIds: selectedAuthorIds,
-          authors: selectedAuthors.map((author) => ({
-            id: author.id,
-            name: author.name,
-          })),
           type: contentType,
-          thumbnail: imgUrl,
+          status: finalStatus,
+          thumbnail: nextImageUrls.thumbnail,
+          images: nextImageUrls,
           contentUrl: mediaUrl,
           ...(values.scheduledDate && { scheduledDate: values.scheduledDate }),
           key: generateContentKey(values.title, values.collectionNum),
@@ -521,15 +792,12 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
       } else {
         const contentData = {
           ...contentValues,
-          author: authorText,
           authorIds: selectedAuthorIds,
-          authors: selectedAuthors.map((author) => ({
-            id: author.id,
-            name: author.name,
-          })),
           id: `${values.categoryId}-${crypto.randomUUID()}`,
           type: contentType,
-          thumbnail: imgUrl,
+          status: finalStatus,
+          thumbnail: nextImageUrls.thumbnail,
+          images: nextImageUrls,
           contentUrl: mediaUrl,
           ...(values.scheduledDate && { scheduledDate: values.scheduledDate }),
           key: generateContentKey(values.title, values.collectionNum),
@@ -546,23 +814,27 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
         }
         await createContent(contentData)
 
-        await Promise.all([
-          incrementCollectionCount(values.collectionId),
-          incrementAnalyticsCount({ field: 'content', amount: 1 }),
-        ])
+        if (!isDraftSave) {
+          await Promise.all([
+            incrementCollectionCount(values.collectionId),
+            incrementAnalyticsCount({ field: 'content', amount: 1 }),
+          ])
+        }
 
         notifications.show({
           title: 'Success',
-          message: 'Content created successfully',
+          message: isDraftSave
+            ? 'Draft saved successfully'
+            : 'Content created successfully',
           color: colors.primary,
         })
+        setLastSubmitIntent(intent)
         setContentCreatedModalOpen(true)
       }
 
       form.reset()
-      setCoverImage(null)
       setMediaFile(null)
-      setCoverImagePreview(null)
+      setContentImages(createEmptyImageStates())
     } catch (error) {
       console.error('Error submitting content:', error)
       notifications.show({
@@ -575,6 +847,14 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
     }
   }
 
+  const handlePublishSubmit = form.onSubmit((values) =>
+    handleSubmit(values, 'publish'),
+  )
+
+  const handleDraftSubmit = form.onSubmit((values) =>
+    handleSubmit(values, 'draft'),
+  )
+
   return (
     <div className="">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -582,8 +862,13 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
           <PageHeader
             page={'contents'}
             actionLabel={contentToEdit ? 'Update Content' : 'Upload Content'}
-            onAction={form.onSubmit(handleSubmit)}
+            onAction={handlePublishSubmit}
+            secondaryActionLabel={
+              contentToEdit ? 'Save Draft' : 'Save as Draft'
+            }
+            secondaryOnAction={handleDraftSubmit}
             loading={isLoading}
+            secondaryLoading={isLoading}
           />
           <Tabs
             defaultValue="flex"
@@ -602,7 +887,7 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
             </Tabs.List>
           </Tabs>
 
-          <Box component="form" onSubmit={form.onSubmit(handleSubmit)}>
+          <Box component="form" onSubmit={handlePublishSubmit}>
             <Stack gap="md">
               <Grid>
                 <Grid.Col span={{ base: 12, sm: 6 }}>
@@ -756,17 +1041,6 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
                     {...sharedInputProps()}
                   />
                 </Grid.Col>
-                <Grid.Col span={6}>
-                  <Select
-                    label="Status"
-                    data={[
-                      { value: 'draft', label: 'Draft' },
-                      { value: 'published', label: 'Published' },
-                    ]}
-                    {...form.getInputProps('status')}
-                    {...sharedInputProps()}
-                  />
-                </Grid.Col>
               </Grid>
 
               <Textarea
@@ -782,36 +1056,18 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
               <Divider my="sm" />
 
               <Grid>
-                <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <FileInput
-                    label="Cover Image"
-                    placeholder="Upload cover image"
-                    accept="image/png,image/jpeg,image/webp"
-                    leftSection={<IconUpload size={16} />}
-                    value={coverImage}
-                    onChange={handleCoverImageChange}
-                    required={!contentToEdit}
-                    description={`Max size: ${fileSize.cover}MB`}
-                    error={coverImageError}
-                    {...sharedInputProps()}
-                  />
-                  {(coverImagePreview || contentToEdit?.thumbnail) && (
-                    <div className="mt-3">
-                      <Text size="sm" fw={500} mb="xs">
-                        Preview:
-                      </Text>
-                      <Image
-                        src={coverImagePreview || contentToEdit?.thumbnail}
-                        height={200}
-                        width={150}
-                        alt="Cover preview"
-                        className="object-cover rounded-md border border-gray-300"
-                        fallbackSrc="https://placehold.co/150x200?text=Preview"
-                        radius={'lg'}
-                      />
-                    </div>
-                  )}
+                <Grid.Col span={{ base: 12, sm: 4 }}>
+                  {renderContentImageField('thumbnail')}
                 </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 4 }}>
+                  {renderContentImageField('poster')}
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 4 }}>
+                  {renderContentImageField('backdrop')}
+                </Grid.Col>
+              </Grid>
+
+              <Grid>
                 <Grid.Col span={{ base: 12, sm: 6 }}>
                   <FileInput
                     label={isReading ? 'PDF File' : 'Video File'}
@@ -892,7 +1148,13 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
               </Text>
               <List spacing="xs" size="sm" center>
                 <List.Item icon={<IconPhoto size={16} />}>
-                  Cover Image ({fileSize.cover}MB max)
+                  Thumbnail image ({fileSize.cover}MB max)
+                </List.Item>
+                <List.Item icon={<IconPhoto size={16} />}>
+                  Poster image ({fileSize.cover}MB max)
+                </List.Item>
+                <List.Item icon={<IconPhoto size={16} />}>
+                  Backdrop image ({fileSize.cover}MB max, 16:9-ish ratio)
                 </List.Item>
                 <List.Item
                   icon={
@@ -923,7 +1185,7 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
               </Text>
               <List spacing="xs" size="sm">
                 <List.Item>
-                  Use high-quality cover images (300x400 recommended)
+                  Upload a consistent thumbnail, poster, and backdrop set
                 </List.Item>
                 <List.Item>
                   Choose appropriate categories for better organization
@@ -931,6 +1193,10 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
                 <List.Item>Write engaging preview descriptions</List.Item>
                 <List.Item>
                   Select relevant genres for better discovery
+                </List.Item>
+                <List.Item>
+                  Keep the backdrop wide and cinematic, but not too strict on
+                  exact pixels
                 </List.Item>
                 <List.Item>Schedule releases for optimal timing</List.Item>
               </List>
@@ -1052,7 +1318,13 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
       <ActionModal
         opened={contentCreatedModalOpen}
         onClose={() => setContentCreatedModalOpen(false)}
-        title={contentToEdit ? 'Content Updated' : 'Content Added'}
+        title={
+          lastSubmitIntent === 'draft'
+            ? 'Draft Saved'
+            : contentToEdit
+              ? 'Content Updated'
+              : 'Content Added'
+        }
         icon={
           <div className="bg-layout p-2 rounded-full size-14 flex justify-center items-center">
             <IconCheck size={28} color={colors.primary} />
@@ -1060,32 +1332,45 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
         }
         message={
           <p className="text-info text-sm">
-            {contentToEdit ? (
+            {lastSubmitIntent === 'draft' ? (
+              <>Draft saved successfully</>
+            ) : contentToEdit ? (
               <>Content updated successfully</>
             ) : (
               <>A new content has been uploaded successfully</>
             )}
           </p>
         }
-        primaryButtonText={contentToEdit ? 'Done' : 'Upload More'}
+        primaryButtonText={
+          lastSubmitIntent === 'draft'
+            ? 'Continue Editing'
+            : contentToEdit
+              ? 'Done'
+              : 'Upload More'
+        }
         onPrimaryButtonClick={() => {
           setContentCreatedModalOpen(false)
           form.reset()
-          setCoverImage(null)
           setMediaFile(null)
-          setCoverImagePreview(null)
+          setContentImages(createEmptyImageStates())
         }}
         primaryButtonColor={colors.primary}
-        secondaryButtonText="Go To Contents"
-        onSecondaryButtonClick={() => {
-          navigate({
-            to: '/content',
-            search: (prev) => ({
-              view: prev.view as 'grid',
-              mode: prev.mode as 'reading',
-            }),
-          })
-        }}
+        secondaryButtonText={
+          lastSubmitIntent === 'draft' ? undefined : 'Go To Contents'
+        }
+        onSecondaryButtonClick={
+          lastSubmitIntent === 'draft'
+            ? undefined
+            : () => {
+                navigate({
+                  to: '/content',
+                  search: (prev) => ({
+                    view: prev.view as 'grid',
+                    mode: prev.mode as 'reading',
+                  }),
+                })
+              }
+        }
       />
     </div>
   )

@@ -1,5 +1,15 @@
 import { Timestamp } from 'firebase/firestore'
 
+export interface ContentImages {
+  thumbnail: string
+  poster?: string
+  backdrop: string
+  card?: string
+  square?: string
+  portrait?: string
+  gallery?: string[]
+}
+
 // export interface Content {
 //   id?: string
 //   author: string
@@ -67,7 +77,7 @@ export interface Content {
   collectionId: string
   collection: string
   collectionNum: number
-  author: string
+  author?: string
   genre: string[]
   tagLine: string
   length: number
@@ -92,11 +102,12 @@ export interface Content {
   publishedAt?: Timestamp
   metadata?: Record<string, any>
   viewerIds: string[]
-  authorIds?: string[]
+  authorIds: string[]
   authors?: Array<{
     id: string
     name: string
   }>
+  images?: ContentImages
 }
 
 export interface Collection {
