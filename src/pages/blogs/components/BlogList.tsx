@@ -92,7 +92,7 @@ const BlogList: React.FC<BlogListProps> = ({
 
   const filteredBlogs = blogs.filter((blog) => {
     if (statusFilter) {
-      const isActive = blog.allowInteraction
+      const isActive = blog.allowInteractions
       if (statusFilter === 'active' && !isActive) return false
       if (statusFilter === 'inactive' && isActive) return false
     }
@@ -102,7 +102,7 @@ const BlogList: React.FC<BlogListProps> = ({
       const matchesContent = blog.content.toLowerCase().includes(searchQuery)
       const matchesAuthor =
         blog.author.name.toLowerCase().includes(searchQuery) ||
-        blog.author.username.toLowerCase().includes(searchQuery)
+        (blog.author.username?.toLowerCase().includes(searchQuery) ?? false)
 
       if (!matchesContent && !matchesAuthor) {
         return false

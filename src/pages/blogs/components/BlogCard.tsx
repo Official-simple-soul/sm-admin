@@ -19,7 +19,7 @@ import {
   IconCalendar,
 } from '@tabler/icons-react'
 import { colors } from '@/theme/theme'
-import type { Blog } from '@/types/blog.type'
+import { getBlogCoverImage, type Blog } from '@/types/blog.type'
 import { formatDate } from '@/utils/dateUtils'
 
 interface BlogCardProps {
@@ -40,7 +40,7 @@ const BlogCard: React.FC<BlogCardProps> = ({ blog, onView, onDelete }) => {
       <Card.Section className="relative mb-4">
         <div className="relative overflow-hidden rounded-t-lg">
           <Image
-            src={blog.cover || 'https://placehold.co/600x400?text=Blog+Cover'}
+            src={getBlogCoverImage(blog) || 'https://placehold.co/600x400?text=Blog+Cover'}
             h={200}
             alt={blog.content.substring(0, 30) + '...'}
             className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -73,22 +73,23 @@ const BlogCard: React.FC<BlogCardProps> = ({ blog, onView, onDelete }) => {
         </div>
 
         <Text size="xs" fw={400} className="mb-2 text-text" lineClamp={2}>
-          By {blog.author.name} (@{blog.author.username})
+          By {blog.author.name}
+          {blog.author.username ? ` (@${blog.author.username})` : ''}
         </Text>
 
         <div className="my-3">
           <Group justify="space-between" className="mb-1">
             <Group gap={4}>
               <IconHeart size={14} color={colors.danger} />
-              <Text size="xs">{blog.like}</Text>
+              <Text size="xs">{blog.likes?.length ?? 0}</Text>
             </Group>
             <Group gap={4}>
               <IconMessage size={14} color={colors.info} />
-              <Text size="xs">{blog.comment}</Text>
+              <Text size="xs">{blog.totalComments}</Text>
             </Group>
             <Group gap={4}>
               <IconShare size={14} color={colors.success} />
-              <Text size="xs">{blog.share}</Text>
+              <Text size="xs">{blog.shares}</Text>
             </Group>
           </Group>
         </div>
@@ -97,7 +98,7 @@ const BlogCard: React.FC<BlogCardProps> = ({ blog, onView, onDelete }) => {
           <Flex justify={'space-between'} align={'center'} className="mt-3">
             <Group gap={4}>
               <IconCalendar size={14} color={colors.info} />
-              <Text size="xs">{formatDate(blog.created_at.toDate())}</Text>
+              <Text size="xs">{formatDate(blog.createdAt.toDate())}</Text>
             </Group>
             <Menu withinPortal position="top-end" shadow="sm">
               <Menu.Target>

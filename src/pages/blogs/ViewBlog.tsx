@@ -27,6 +27,7 @@ import { AppButton } from '@/components/AppButton'
 import ActionModal from '@/components/modals/ActionModal'
 import { colors } from '@/theme/theme'
 import { useUpdateBlog, useDeleteBlog, useBlog } from '@/services/blog.service'
+import { getBlogCoverImage } from '@/types/blog.type'
 import { formatDate } from '@/utils/dateUtils'
 import { Back } from '@/components/Back'
 
@@ -119,13 +120,13 @@ function ViewBlog({ id }: ViewBlog) {
                 <div>
                   <Badge
                     color={
-                      blog.allowInteraction ? colors.success : colors.danger
+                      blog.allowInteractions ? colors.success : colors.danger
                     }
                     variant="light"
                     size="lg"
                     mb="sm"
                   >
-                    {blog.allowInteraction
+                    {blog.allowInteractions
                       ? 'Interaction Allowed'
                       : 'Interaction Blocked'}
                   </Badge>
@@ -142,7 +143,7 @@ function ViewBlog({ id }: ViewBlog) {
               </Group>
 
               <Image
-                src={blog.cover}
+                src={getBlogCoverImage(blog)}
                 alt="Blog cover"
                 radius="md"
                 className="mb-6 shadow"
@@ -160,17 +161,17 @@ function ViewBlog({ id }: ViewBlog) {
                 <Group>
                   <Group gap={4}>
                     <IconHeart size={18} color={colors.danger} />
-                    <Text size="sm">{blog.like} likes</Text>
+                    <Text size="sm">{blog.likes?.length ?? 0} likes</Text>
                   </Group>
 
                   <Group gap={4}>
                     <IconMessage size={18} color={colors.info} />
-                    <Text size="sm">{blog.comment} comments</Text>
+                    <Text size="sm">{blog.totalComments} comments</Text>
                   </Group>
 
                   <Group gap={4}>
                     <IconShare size={18} color={colors.success} />
-                    <Text size="sm">{blog.share} shares</Text>
+                    <Text size="sm">{blog.shares} shares</Text>
                   </Group>
                 </Group>
 
@@ -178,15 +179,15 @@ function ViewBlog({ id }: ViewBlog) {
                   <Group gap={4}>
                     <IconCalendar size={16} color={colors.info} />
                     <Text size="sm">
-                      Created: {formatDate(blog.created_at.toDate())}
+                      Created: {formatDate(blog.createdAt.toDate())}
                     </Text>
                   </Group>
 
-                  {blog.updated_at && (
+                  {blog.updatedAt && (
                     <Group gap={4}>
                       <IconCalendar size={16} color={colors.info} />
                       <Text size="sm">
-                        Updated: {formatDate(blog.updated_at.toDate())}
+                        Updated: {formatDate(blog.updatedAt.toDate())}
                       </Text>
                     </Group>
                   )}
@@ -211,12 +212,14 @@ function ViewBlog({ id }: ViewBlog) {
 
                 <div>
                   <Text fw={600}>{blog.author.name}</Text>
-                  <Text size="sm" c="dimmed">
-                    @{blog.author.username}
-                  </Text>
+                  {blog.author.username && (
+                    <Text size="sm" c="dimmed">
+                      @{blog.author.username}
+                    </Text>
+                  )}
                   <Group gap={4} mt={4}>
                     <IconUser size={14} />
-                    <Text size="sm">Author ID: {blog.author_id}</Text>
+                    <Text size="sm">Author ID: {blog.author.id}</Text>
                   </Group>
                 </div>
               </Group>

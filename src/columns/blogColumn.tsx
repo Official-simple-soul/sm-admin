@@ -1,5 +1,5 @@
 import type { ColumnDefinition } from '@/types/global.types'
-import type { Blog } from '@/types/blog.type'
+import { getBlogCoverImage, type Blog } from '@/types/blog.type'
 import { Badge, Box, Group, Image, Text } from '@mantine/core'
 import {
   IconHeart,
@@ -24,7 +24,7 @@ export const blogColumns = (
       render: (row: Blog) => (
         <Group wrap="nowrap">
           <Image
-            src={row.cover || 'https://placehold.co/40x40?text=Cover'}
+            src={getBlogCoverImage(row) || 'https://placehold.co/40x40?text=Cover'}
             w={40}
             h={40}
             radius="sm"
@@ -50,7 +50,7 @@ export const blogColumns = (
       render: (row: Blog) => (
         <Badge
           variant="light"
-          color={row.allowInteraction ? colors.success : colors.danger}
+          color={row.allowInteractions ? colors.success : colors.danger}
           size={'md'}
           styles={{
             root: {
@@ -58,7 +58,7 @@ export const blogColumns = (
             },
           }}
         >
-          {row.allowInteraction ? 'Active' : 'Inactive'}
+          {row.allowInteractions ? 'Active' : 'Inactive'}
         </Badge>
       ),
     },
@@ -68,7 +68,7 @@ export const blogColumns = (
       render: (row: Blog) => (
         <Group gap={4}>
           <IconHeart size={16} color={colors.danger} />
-          <TableText>{row.like}</TableText>
+          <TableText>{row.likes?.length ?? 0}</TableText>
         </Group>
       ),
     },
@@ -78,7 +78,7 @@ export const blogColumns = (
       render: (row: Blog) => (
         <Group gap={4}>
           <IconMessage size={16} color={colors.info} />
-          <TableText>{row.comment}</TableText>
+          <TableText>{row.totalComments}</TableText>
         </Group>
       ),
     },
@@ -88,7 +88,7 @@ export const blogColumns = (
       render: (row: Blog) => (
         <Group gap={4}>
           <IconShare size={16} color={colors.success} />
-          <TableText>{row.share}</TableText>
+          <TableText>{row.shares}</TableText>
         </Group>
       ),
     },
@@ -98,7 +98,7 @@ export const blogColumns = (
       render: (row: Blog) => (
         <Group gap={4}>
           <IconCalendar size={16} color={colors.info} />
-          <TableText>{formatDate(row.created_at.toDate())}</TableText>
+          <TableText>{formatDate(row.createdAt.toDate())}</TableText>
         </Group>
       ),
     },
