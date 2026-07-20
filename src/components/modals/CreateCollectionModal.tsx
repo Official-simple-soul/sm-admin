@@ -1,4 +1,5 @@
 import { CreateAuthorModal } from '@/components/modals/CreateAuthorModal'
+import { CONTENT_MODES, GENRES } from '@/constant/constant'
 import { modalBaseProps, sharedInputProps } from '@/constant/ui'
 import { useAuthor } from '@/services/author.service'
 import { useCollection } from '@/services/collection.service'
@@ -24,28 +25,10 @@ import { AppButton } from '../AppButton'
 interface CreateCollectionModalProps {
   opened: boolean
   onClose: () => void
-  collectionToEdit?: Collection
+  collectionToEdit?: Collection | null
+  onCreated?: (id: string) => void
+  onUpdated?: (collection: Collection) => void
 }
-
-const genres = [
-  'action',
-  'adventure',
-  'comedy',
-  'drama',
-  'fantasy',
-  'horror',
-  'mystery',
-  'romance',
-  'sci-fi',
-  'superhero',
-  'thriller',
-  'super-hero',
-]
-
-const contentTypes = [
-  { value: 'reading', label: 'Flex' },
-  { value: 'watching', label: 'Watching' },
-]
 
 const normalizeWhitespace = (value: string) => value.trim().replace(/\s+/g, ' ')
 
@@ -77,8 +60,11 @@ export function CreateCollectionModal({
   opened,
   onClose,
   collectionToEdit,
+  onCreated,
+  onUpdated,
 }: CreateCollectionModalProps) {
-  const { createCollection, isCreating } = useCollection()
+  const { createCollection, updateCollection, isCreating, isUpdating } =
+    useCollection()
   const { authors } = useAuthor()
   const [openNewAuthorModal, setOpenNewAuthorModal] = useState(false)
   const form = useForm({
@@ -155,15 +141,23 @@ export function CreateCollectionModal({
       name: author.name,
     }))
 
+    const payload = {
+      name: values.name,
+      author: authorNameText,
+      authorIds: values.authorIds,
+      authors: authorPayload,
+      mode: values.mode,
+      genre: values.genre,
+    }
+
     try {
-      await createCollection({
-        name: values.name,
-        author: authorNameText,
-        authorIds: values.authorIds,
-        authors: authorPayload,
-        mode: values.mode,
-        genre: values.genre,
-      })
+      if (collectionToEdit?.id) {
+        await updateCollection({ id: collectionToEdit.id, data: payload })
+        onUpdated?.({ ...collectionToEdit, ...payload })
+      } else {
+        const id = await createCollection(payload)
+        onCreated?.(id)
+      }
 
       notifications.show({
         title: 'Success',
@@ -240,7 +234,7 @@ export function CreateCollectionModal({
             label="Content Type"
             placeholder="Select type"
             required
-            data={contentTypes}
+            data={CONTENT_MODES}
             {...form.getInputProps('mode')}
             {...sharedInputProps()}
           />
@@ -249,7 +243,7 @@ export function CreateCollectionModal({
             label="Genres"
             placeholder="Select genres"
             required
-            data={genres}
+            data={GENRES}
             searchable
             {...form.getInputProps('genre')}
             {...sharedInputProps()}
@@ -259,12 +253,16 @@ export function CreateCollectionModal({
             <AppButton
               variant="default"
               onClick={onClose}
-              loading={isCreating}
-              disabled={isCreating}
+              loading={isCreating || isUpdating}
+              disabled={isCreating || isUpdating}
             >
               Cancel
             </AppButton>
-            <AppButton type="submit" loading={isCreating} disabled={isCreating}>
+            <AppButton
+              type="submit"
+              loading={isCreating || isUpdating}
+              disabled={isCreating || isUpdating}
+            >
               {collectionToEdit ? 'Update Collection' : 'Create Collection'}
             </AppButton>
           </Group>

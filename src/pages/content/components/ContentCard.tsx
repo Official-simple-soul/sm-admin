@@ -94,14 +94,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
           >
             {content.title}
           </Text>
-          {/* <Text size="sm" c="dimmed" lineClamp={1}>
-            {content.collection}
-          </Text> */}
         </div>
-
-        <Text size="xs" fw={400} className="mb-2 text-text" lineClamp={1}>
-          By {content.author || 'Unknown author'}
-        </Text>
         <div className="my-3">
           <Group justify="space-between" className="mb-1">
             <Text size="xs" c="dimmed">

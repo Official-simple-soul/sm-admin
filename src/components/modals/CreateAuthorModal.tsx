@@ -11,7 +11,6 @@ import {
   Text,
   TextInput,
 } from '@mantine/core'
-import { useForm } from '@mantine/form'
 import { notifications } from '@mantine/notifications'
 import { IconPlus, IconTrash } from '@tabler/icons-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -21,6 +20,8 @@ interface CreateAuthorModalProps {
   opened: boolean
   onClose: () => void
   onCreated?: (authors: Author[]) => void
+  onUpdated?: (author: Author) => void
+  authorToEdit?: Author | null
 }
 
 const normalizeWhitespace = (value: string) => value.trim().replace(/\s+/g, ' ')
@@ -35,23 +36,30 @@ export function CreateAuthorModal({
   opened,
   onClose,
   onCreated,
+  onUpdated,
+  authorToEdit,
 }: CreateAuthorModalProps) {
-  const { createAuthor, isCreating, getAuthorByName } = useAuthor()
+  const { createAuthor, updateAuthor, isCreating, isUpdating, getAuthorByName } =
+    useAuthor()
   const [authorInputs, setAuthorInputs] = useState([''])
+  const [editName, setEditName] = useState('')
 
-  const form = useForm({
-    initialValues: { name: '' },
-    validate: {
-      name: (value) => (value.trim() ? null : 'Author name is required'),
-    },
-  })
+  const isEditMode = !!authorToEdit
 
   useEffect(() => {
     if (!opened) {
-      form.reset()
       setAuthorInputs([''])
+      setEditName('')
+      return
     }
-  }, [opened])
+
+    if (authorToEdit) {
+      setEditName(authorToEdit.name)
+    } else {
+      setAuthorInputs([''])
+      setEditName('')
+    }
+  }, [opened, authorToEdit])
 
   const authorRows = useMemo(() => authorInputs, [authorInputs])
 
@@ -73,29 +81,64 @@ export function CreateAuthorModal({
   }
 
   const handleSubmit = async () => {
-    console.log('begin')
-    const candidateNames = Array.from(
-      new Set(
-        authorInputs
-          .flatMap((input) => splitAuthorInput(input))
-          .map((name) => normalizeWhitespace(name))
-          .filter(Boolean),
-      ),
-    )
-
-    if (candidateNames.length === 0) {
-      notifications.show({
-        title: 'Validation Error',
-        message: 'Please enter at least one author name',
-        color: 'red',
-      })
-      return
-    }
-
-    console.log('pass validation')
-
     try {
-      console.log('start try')
+      if (isEditMode && authorToEdit) {
+        const trimmedName = normalizeWhitespace(editName)
+
+        if (!trimmedName) {
+          notifications.show({
+            title: 'Validation Error',
+            message: 'Author name is required',
+            color: 'red',
+          })
+          return
+        }
+
+        const existing = await getAuthorByName(trimmedName)
+        if (existing && existing.id !== authorToEdit.id) {
+          notifications.show({
+            title: 'Author exists',
+            message: `${existing.name} already exists and cannot be duplicated.`,
+            color: 'red',
+          })
+          return
+        }
+
+        await updateAuthor({ id: authorToEdit.id, data: { name: trimmedName } })
+
+        const updatedAuthor: Author = {
+          ...authorToEdit,
+          name: trimmedName,
+        }
+
+        notifications.show({
+          title: 'Success',
+          message: 'Author updated successfully',
+          color: colors.primary,
+        })
+        onUpdated?.(updatedAuthor)
+        onClose()
+        return
+      }
+
+      const candidateNames = Array.from(
+        new Set(
+          authorInputs
+            .flatMap((input) => splitAuthorInput(input))
+            .map((name) => normalizeWhitespace(name))
+            .filter(Boolean),
+        ),
+      )
+
+      if (candidateNames.length === 0) {
+        notifications.show({
+          title: 'Validation Error',
+          message: 'Please enter at least one author name',
+          color: 'red',
+        })
+        return
+      }
+
       const savedAuthors: Author[] = []
 
       for (const name of candidateNames) {
@@ -120,12 +163,10 @@ export function CreateAuthorModal({
       })
       onCreated?.(savedAuthors)
       onClose()
-      form.reset()
-      setAuthorInputs([''])
     } catch (error) {
       notifications.show({
         title: 'Error',
-        message: `Failed to create author: ${
+        message: `Failed to ${isEditMode ? 'update' : 'create'} author: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`,
         color: colors.danger,
@@ -133,85 +174,92 @@ export function CreateAuthorModal({
     }
   }
 
-  console.log({ isCreating })
+  const isLoading = isCreating || isUpdating
 
   return (
     <Modal
       opened={opened}
       onClose={onClose}
-      title={<Text fw={600}>Create New Author</Text>}
+      title={<Text fw={600}>{isEditMode ? 'Edit Author' : 'Create New Author'}</Text>}
       centered
       zIndex={1000}
       {...modalBaseProps()}
     >
-      <Box>
+      <Box component="form" onSubmit={(event) => event.preventDefault()}>
         <Stack gap="md">
-          <Stack gap="sm">
-            <Text fw={500} size="sm">
-              Author Names
-            </Text>
-            <Text size="xs" c="dimmed">
-              Add one author per field. You can also paste comma-separated names
-              and they will be split automatically.
-            </Text>
-
-            {authorRows.map((value, index) => (
-              <Group key={index} align="flex-start" wrap="nowrap">
-                <TextInput
-                  placeholder={`Author name ${index + 1}`}
-                  required
-                  className="flex-1"
-                  value={value}
-                  onChange={(event) =>
-                    updateAuthorInput(index, event.currentTarget.value)
-                  }
-                  {...sharedInputProps()}
-                />
-                <ActionIcon
-                  variant="light"
-                  color="gray"
-                  size="lg"
-                  mt={4}
-                  onClick={() => removeAuthorInput(index)}
-                  disabled={authorRows.length === 1}
-                  aria-label="Remove author row"
-                >
-                  <IconTrash size={16} />
-                </ActionIcon>
-              </Group>
-            ))}
-
-            <Group justify="space-between">
-              <Text size="xs" c="dimmed">
-                Collection authors can have multiple names.
+          {isEditMode ? (
+            <TextInput
+              label="Author Name"
+              placeholder="Enter author name"
+              required
+              value={editName}
+              onChange={(event) => setEditName(event.currentTarget.value)}
+              description="This will update the canonical author name."
+              {...sharedInputProps()}
+            />
+          ) : (
+            <Stack gap="sm">
+              <Text fw={500} size="sm">
+                Author Names
               </Text>
-              <AppButton
-                type="button"
-                variant="light"
-                leftSection={<IconPlus size={16} />}
-                onClick={addAuthorInput}
-              >
-                Add another author
-              </AppButton>
-            </Group>
-          </Stack>
+              <Text size="xs" c="dimmed">
+                Add one author per field. You can also paste comma-separated
+                names and they will be split automatically.
+              </Text>
+
+              {authorRows.map((value, index) => (
+                <Group key={index} align="flex-start" wrap="nowrap">
+                  <TextInput
+                    placeholder={`Author name ${index + 1}`}
+                    required
+                    className="flex-1"
+                    value={value}
+                    onChange={(event) =>
+                      updateAuthorInput(index, event.currentTarget.value)
+                    }
+                    {...sharedInputProps()}
+                  />
+                  <ActionIcon
+                    variant="light"
+                    color="gray"
+                    size="lg"
+                    mt={4}
+                    onClick={() => removeAuthorInput(index)}
+                    disabled={authorRows.length === 1}
+                    aria-label="Remove author row"
+                  >
+                    <IconTrash size={16} />
+                  </ActionIcon>
+                </Group>
+              ))}
+
+              <Group justify="space-between">
+                <Text size="xs" c="dimmed">
+                  Collection authors can have multiple names.
+                </Text>
+                <AppButton
+                  type="button"
+                  variant="light"
+                  leftSection={<IconPlus size={16} />}
+                  onClick={addAuthorInput}
+                >
+                  Add another author
+                </AppButton>
+              </Group>
+            </Stack>
+          )}
 
           <Group justify="flex-end" mt="md">
             <AppButton
               variant="default"
               onClick={onClose}
-              loading={isCreating}
-              disabled={isCreating}
+              loading={isLoading}
+              disabled={isLoading}
             >
               Cancel
             </AppButton>
-            <AppButton
-              type="button"
-              loading={isCreating}
-              disabled={isCreating}
-              onClick={handleSubmit}
-            >
-              Create Author
+            <AppButton type="button" onClick={handleSubmit} loading={isLoading} disabled={isLoading}>
+              {isEditMode ? 'Update Author' : 'Create Author'}
             </AppButton>
           </Group>
         </Stack>

@@ -14,7 +14,10 @@ import { Route as UsersIndexRouteImport } from './routes/users/index'
 import { Route as EmployeeIndexRouteImport } from './routes/employee/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as ContentIndexRouteImport } from './routes/content/index'
+import { Route as CollectionsIndexRouteImport } from './routes/collections/index'
+import { Route as CategoriesIndexRouteImport } from './routes/categories/index'
 import { Route as BlogsIndexRouteImport } from './routes/blogs/index'
+import { Route as AuthorsIndexRouteImport } from './routes/authors/index'
 import { Route as UsersUserIdRouteImport } from './routes/users/$userId'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo.tanstack-query'
 import { Route as ContentNewContentRouteImport } from './routes/content/new-content'
@@ -47,9 +50,24 @@ const ContentIndexRoute = ContentIndexRouteImport.update({
   path: '/content/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CollectionsIndexRoute = CollectionsIndexRouteImport.update({
+  id: '/collections/',
+  path: '/collections/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CategoriesIndexRoute = CategoriesIndexRouteImport.update({
+  id: '/categories/',
+  path: '/categories/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BlogsIndexRoute = BlogsIndexRouteImport.update({
   id: '/blogs/',
   path: '/blogs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthorsIndexRoute = AuthorsIndexRouteImport.update({
+  id: '/authors/',
+  path: '/authors/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UsersUserIdRoute = UsersUserIdRouteImport.update({
@@ -90,7 +108,10 @@ export interface FileRoutesByFullPath {
   '/content/new-content': typeof ContentNewContentRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/users/$userId': typeof UsersUserIdRoute
+  '/authors': typeof AuthorsIndexRoute
   '/blogs': typeof BlogsIndexRoute
+  '/categories': typeof CategoriesIndexRoute
+  '/collections': typeof CollectionsIndexRoute
   '/content': typeof ContentIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/employee': typeof EmployeeIndexRoute
@@ -104,7 +125,10 @@ export interface FileRoutesByTo {
   '/content/new-content': typeof ContentNewContentRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/users/$userId': typeof UsersUserIdRoute
+  '/authors': typeof AuthorsIndexRoute
   '/blogs': typeof BlogsIndexRoute
+  '/categories': typeof CategoriesIndexRoute
+  '/collections': typeof CollectionsIndexRoute
   '/content': typeof ContentIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/employee': typeof EmployeeIndexRoute
@@ -119,7 +143,10 @@ export interface FileRoutesById {
   '/content/new-content': typeof ContentNewContentRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/users/$userId': typeof UsersUserIdRoute
+  '/authors/': typeof AuthorsIndexRoute
   '/blogs/': typeof BlogsIndexRoute
+  '/categories/': typeof CategoriesIndexRoute
+  '/collections/': typeof CollectionsIndexRoute
   '/content/': typeof ContentIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/employee/': typeof EmployeeIndexRoute
@@ -135,7 +162,10 @@ export interface FileRouteTypes {
     | '/content/new-content'
     | '/demo/tanstack-query'
     | '/users/$userId'
+    | '/authors'
     | '/blogs'
+    | '/categories'
+    | '/collections'
     | '/content'
     | '/dashboard'
     | '/employee'
@@ -149,7 +179,10 @@ export interface FileRouteTypes {
     | '/content/new-content'
     | '/demo/tanstack-query'
     | '/users/$userId'
+    | '/authors'
     | '/blogs'
+    | '/categories'
+    | '/collections'
     | '/content'
     | '/dashboard'
     | '/employee'
@@ -163,7 +196,10 @@ export interface FileRouteTypes {
     | '/content/new-content'
     | '/demo/tanstack-query'
     | '/users/$userId'
+    | '/authors/'
     | '/blogs/'
+    | '/categories/'
+    | '/collections/'
     | '/content/'
     | '/dashboard/'
     | '/employee/'
@@ -178,7 +214,10 @@ export interface RootRouteChildren {
   ContentNewContentRoute: typeof ContentNewContentRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
   UsersUserIdRoute: typeof UsersUserIdRoute
+  AuthorsIndexRoute: typeof AuthorsIndexRoute
   BlogsIndexRoute: typeof BlogsIndexRoute
+  CategoriesIndexRoute: typeof CategoriesIndexRoute
+  CollectionsIndexRoute: typeof CollectionsIndexRoute
   ContentIndexRoute: typeof ContentIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   EmployeeIndexRoute: typeof EmployeeIndexRoute
@@ -223,11 +262,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContentIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/collections/': {
+      id: '/collections/'
+      path: '/collections'
+      fullPath: '/collections'
+      preLoaderRoute: typeof CollectionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/categories/': {
+      id: '/categories/'
+      path: '/categories'
+      fullPath: '/categories'
+      preLoaderRoute: typeof CategoriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/blogs/': {
       id: '/blogs/'
       path: '/blogs'
       fullPath: '/blogs'
       preLoaderRoute: typeof BlogsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/authors/': {
+      id: '/authors/'
+      path: '/authors'
+      fullPath: '/authors'
+      preLoaderRoute: typeof AuthorsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/users/$userId': {
@@ -282,7 +342,10 @@ const rootRouteChildren: RootRouteChildren = {
   ContentNewContentRoute: ContentNewContentRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
   UsersUserIdRoute: UsersUserIdRoute,
+  AuthorsIndexRoute: AuthorsIndexRoute,
   BlogsIndexRoute: BlogsIndexRoute,
+  CategoriesIndexRoute: CategoriesIndexRoute,
+  CollectionsIndexRoute: CollectionsIndexRoute,
   ContentIndexRoute: ContentIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   EmployeeIndexRoute: EmployeeIndexRoute,

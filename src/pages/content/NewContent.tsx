@@ -2,7 +2,7 @@ import { AppButton } from '@/components/AppButton'
 import ActionModal from '@/components/modals/ActionModal'
 import { CreateCollectionModal } from '@/components/modals/CreateCollectionModal'
 import PageHeader from '@/components/PageHeader'
-import { fileSize } from '@/constant/constant'
+import { CATEGORY_ICONS, fileSize } from '@/constant/constant'
 import { sharedInputProps } from '@/constant/ui'
 import { useAnalytics } from '@/services/analytics.service'
 import { useAuthor } from '@/services/author.service'
@@ -183,21 +183,6 @@ const IMAGE_REQUIREMENTS: Record<
   },
 }
 
-const CATEGORY_ICONS = [
-  { value: 'book', label: 'Book' },
-  { value: 'video', label: 'Video' },
-  { value: 'movie', label: 'Movie' },
-  { value: 'tv', label: 'TV' },
-  { value: 'game', label: 'Game' },
-  { value: 'music', label: 'Music' },
-  { value: 'art', label: 'Art' },
-  { value: 'sports', label: 'Sports' },
-  { value: 'tech', label: 'Tech' },
-  { value: 'education', label: 'Education' },
-  { value: 'entertainment', label: 'Entertainment' },
-  { value: 'news', label: 'News' },
-]
-
 const normalizeWhitespace = (value: string) => value.trim().replace(/\s+/g, ' ')
 
 const normalizeAuthorKey = (value: string) =>
@@ -365,6 +350,12 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
 
     validate: {
       title: (value) => (value.trim() ? null : 'Title is required'),
+      tagLine: (value) => {
+        if (!value.trim()) return 'Tagline is required'
+        if (value.length > 30)
+          return 'Tagline cannot be more than 30 characters'
+        return null
+      },
       collection: (value) => (value.trim() ? null : 'Collection is required'),
       categoryId: (value) => (value.trim() ? null : 'Category is required'),
       genre: (value) =>
@@ -669,7 +660,9 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
     const selectedCollection = collections.find(
       (e) => e.id === values.collectionId,
     )
-    const selectedAuthorIds = selectedCollectionAuthors.map((author) => author.id)
+    const selectedAuthorIds = selectedCollectionAuthors.map(
+      (author) => author.id,
+    )
     const isDraftSave = intent === 'draft'
     const finalStatus: 'draft' | 'published' = isDraftSave
       ? 'draft'

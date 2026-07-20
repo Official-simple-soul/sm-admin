@@ -1,6 +1,9 @@
 export const roles = {
   dashboard: ['moderator', 'admin', 'super-admin'],
   content: ['admin', 'super-admin'],
+  authors: ['admin', 'super-admin'],
+  collections: ['admin', 'super-admin'],
+  categories: ['admin', 'super-admin'],
   employee: [],
   users: ['admin', 'super-admin'],
   blogs: ['moderator', 'admin', 'super-admin'],

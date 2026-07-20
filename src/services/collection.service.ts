@@ -28,6 +28,9 @@ export const useCollection = () => {
   const updateCollectionMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Collection> }) =>
       collectionApi.updateCollection(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collections'] })
+    },
   })
 
   // Delete collection mutation
