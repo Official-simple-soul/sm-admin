@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UsersIndexRouteImport } from './routes/users/index'
+import { Route as GalleryIndexRouteImport } from './routes/gallery/index'
 import { Route as EmployeeIndexRouteImport } from './routes/employee/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as ContentIndexRouteImport } from './routes/content/index'
@@ -33,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
 const UsersIndexRoute = UsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GalleryIndexRoute = GalleryIndexRouteImport.update({
+  id: '/gallery/',
+  path: '/gallery/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmployeeIndexRoute = EmployeeIndexRouteImport.update({
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/content': typeof ContentIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/employee': typeof EmployeeIndexRoute
+  '/gallery': typeof GalleryIndexRoute
   '/users': typeof UsersIndexRoute
   '/users/manage': typeof UsersManageIndexRoute
 }
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/content': typeof ContentIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/employee': typeof EmployeeIndexRoute
+  '/gallery': typeof GalleryIndexRoute
   '/users': typeof UsersIndexRoute
   '/users/manage': typeof UsersManageIndexRoute
 }
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/content/': typeof ContentIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/employee/': typeof EmployeeIndexRoute
+  '/gallery/': typeof GalleryIndexRoute
   '/users/': typeof UsersIndexRoute
   '/users/manage/': typeof UsersManageIndexRoute
 }
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/content'
     | '/dashboard'
     | '/employee'
+    | '/gallery'
     | '/users'
     | '/users/manage'
   fileRoutesByTo: FileRoutesByTo
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/content'
     | '/dashboard'
     | '/employee'
+    | '/gallery'
     | '/users'
     | '/users/manage'
   id:
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/content/'
     | '/dashboard/'
     | '/employee/'
+    | '/gallery/'
     | '/users/'
     | '/users/manage/'
   fileRoutesById: FileRoutesById
@@ -221,6 +233,7 @@ export interface RootRouteChildren {
   ContentIndexRoute: typeof ContentIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   EmployeeIndexRoute: typeof EmployeeIndexRoute
+  GalleryIndexRoute: typeof GalleryIndexRoute
   UsersIndexRoute: typeof UsersIndexRoute
   UsersManageIndexRoute: typeof UsersManageIndexRoute
 }
@@ -239,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof UsersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gallery/': {
+      id: '/gallery/'
+      path: '/gallery'
+      fullPath: '/gallery'
+      preLoaderRoute: typeof GalleryIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/employee/': {
@@ -349,6 +369,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContentIndexRoute: ContentIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   EmployeeIndexRoute: EmployeeIndexRoute,
+  GalleryIndexRoute: GalleryIndexRoute,
   UsersIndexRoute: UsersIndexRoute,
   UsersManageIndexRoute: UsersManageIndexRoute,
 }

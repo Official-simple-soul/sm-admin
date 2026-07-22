@@ -12,4 +12,5 @@ export const roles = {
   singleUser: ['admin', 'super-admin'],
   newContent: ['admin', 'super-admin'],
   appAccess: ['moderator', 'admin', 'super-admin'],
+  gallery: ['admin', 'super-admin'],
 }

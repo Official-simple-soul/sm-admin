@@ -6,6 +6,7 @@ import {
   IconFolders,
   IconPaperBag,
   IconPencil,
+  IconPhoto,
   IconUsers,
 } from '@tabler/icons-react'
 
@@ -57,5 +58,11 @@ export const links = [
     label: 'Blogs Management',
     route: '/blogs',
     allowedRoles: roles.blogs,
+  },
+  {
+    icon: <IconPhoto size={20} />,
+    label: 'Gallery',
+    route: '/gallery',
+    allowedRoles: roles.gallery,
   },
 ]
