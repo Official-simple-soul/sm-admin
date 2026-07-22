@@ -19,7 +19,7 @@ import {
   Text,
 } from '@mantine/core'
 import { IconGridDots, IconList, IconTrash } from '@tabler/icons-react'
-import { useNavigate, useSearch } from '@tanstack/react-router'
+import { useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import React, { startTransition, useState } from 'react'
 import ContentCard from './components/ContentCard'
 import ContentList from './components/ContentList'
@@ -39,6 +39,7 @@ export const ContentPage: React.FC = () => {
 
   const navigate = useNavigate({ from: '/content' })
   const route = useNavigate()
+  const router = useRouter()
 
   const handleView = (content: Content) => {
     route({ to: `/content/${content.id}` })
@@ -65,6 +66,8 @@ export const ContentPage: React.FC = () => {
         ])
       },
     })
+
+    router.invalidate()
   }
 
   const updateSearch = (

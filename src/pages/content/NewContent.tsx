@@ -990,7 +990,7 @@ function NewContent({ contentToEdit }: CreateContentModalProps) {
                     readOnly
                     searchable
                     nothingFoundMessage="No authors found"
-                    description="Authors are inherited from the selected collection and cannot be edited here."
+                    description="This will be automatically populated based on the selected collection"
                     {...sharedInputProps()}
                   />
                 </Grid.Col>
